@@ -48,15 +48,17 @@ class Program
         // new SqliteCommand(insertHabitCommand + insertUnitCommand, connection).ExecuteNonQuery();
 
         int habitId = -1;
+        string selectedHabit = "";
         int unitId = -1;
+        string selectedUnit = "";
         string dateLogged = "";
 
         Console.WriteLine("Choose a habit to log: ");
         string selectAllHabitsCommand = @"SELECT * FROM habits;";
-        using var reader = new SqliteCommand(selectAllHabitsCommand, connection).ExecuteReader();
-        while (reader.Read())
+        using var habitReader = new SqliteCommand(selectAllHabitsCommand, connection).ExecuteReader();
+        while (habitReader.Read())
         {
-            Console.WriteLine($"{reader["habit_id"]} : {reader["habit_name"]}");
+            Console.WriteLine($"{habitReader["habit_id"]} : {habitReader["habit_name"]}");
         }
 
         string selectHabitForIdCommand = @"SELECT COUNT(*) FROM habits WHERE habit_id = @HabitId;";
@@ -78,7 +80,60 @@ class Program
             }
         }
 
-        Console.WriteLine(habitCount);
+        string selectHabitNameForId = @"SELECT habit_name FROM habits WHERE habit_id = @HabitId";
+        using (var command = new SqliteCommand(selectHabitNameForId, connection))
+        {
+            command.Parameters.Add("@HabitId", SqliteType.Integer).Value = habitId;
+            // habitCount = Convert.ToInt32(command.ExecuteScalar());
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+
+                Console.WriteLine($"You've chosen: {reader["habit_name"]}");
+                selectedHabit = reader["habit_name"].ToString();
+            }
+            // command.ExecuteNonQuery();
+        }
+
+
+        Console.WriteLine("Choose a unit for the selected habit: ");
+        string selectAllUnitsCommand = @"SELECT * FROM units;";
+        using var unitReader = new SqliteCommand(selectAllUnitsCommand, connection).ExecuteReader();
+        while (unitReader.Read())
+        {
+            Console.WriteLine($"{unitReader["unit_id"]} : {unitReader["unit_name"]}");
+        }
+
+        string selectUnitForIdCommand = @"SELECT COUNT(*) FROM units WHERE unit_id = @UnitId;";
+
+        string? unitIdInput = Console.ReadLine();
+        while (string.IsNullOrEmpty(unitIdInput) || !int.TryParse(unitIdInput, out unitId) || unitId < 0)
+        {
+            Console.WriteLine("This is not a valid ID. Please try again: ");
+            unitIdInput = Console.ReadLine();
+        }
+
+        int unitCount = 0;
+        while (unitCount != 1)
+        {
+            using (var command = new SqliteCommand(selectUnitForIdCommand, connection))
+            {
+                command.Parameters.Add("@UnitId", SqliteType.Integer).Value = unitId;
+                unitCount = Convert.ToInt32(command.ExecuteScalar());
+            }
+        }
+
+        string selectUnitNameForId = @"SELECT unit_name FROM units WHERE unit_id = @UnitId";
+        using (var command = new SqliteCommand(selectUnitNameForId, connection))
+        {
+            command.Parameters.Add("@UnitId", SqliteType.Integer).Value = unitId;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                Console.WriteLine($"You've chosen: {reader["unit_name"]}");
+                selectedUnit = reader["unit_name"].ToString();
+            }
+        }
 
         // if (Console.ReadLine() == "p")
         // {
