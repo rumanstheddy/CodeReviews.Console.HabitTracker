@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Data.Sqlite;
 // TODO: This habit can't be tracked by time (ex. hours of sleep), only by quantity (ex. number of water glasses a day)
 // TODO: Users need to be able to input the date of the occurrence of the habit
 // TODO: The application should store and retrieve data from a real database
@@ -10,6 +11,9 @@
 // TODO: Your project needs to contain a Read Me file where you'll explain how your app works and tell a little bit about your thought progress.
 // ? https://www.thecsharpacademy.com/project/12/habit-logger
 // ? https://reintech.io/blog/mastering-parameterized-queries-ado-net
+
+
+//TODO: work on better variable naming
 
 class Program
 {
@@ -51,7 +55,8 @@ class Program
         string selectedHabit = "";
         int unitId = -1;
         string selectedUnit = "";
-        string dateLogged = "";
+        string? dateLogged = "";
+        double quantity = 0.0;
 
         Console.WriteLine("Choose a habit to log: ");
         string selectAllHabitsCommand = @"SELECT * FROM habits;";
@@ -132,6 +137,90 @@ class Program
             {
                 Console.WriteLine($"You've chosen: {reader["unit_name"]}");
                 selectedUnit = reader["unit_name"].ToString();
+
+                Console.Write($"Enter the quantity of {selectedUnit}:");
+                string? quantityInput = Console.ReadLine();
+                bool isQuantityDouble = double.TryParse(quantityInput, out quantity);
+                while (!isQuantityDouble || quantity < 0)
+                {
+                    if (!isQuantityDouble)
+                    {
+                        Console.WriteLine("This is not valid input. Please enter a numeric value: ");
+                    }
+                    else if (quantity < 0)
+                    {
+                        Console.WriteLine("Error: Quantity should be a positive value.");
+                    }
+                    quantityInput = Console.ReadLine();
+                }
+            }
+        }
+
+        // Console.Write("Enter the quantity: ");
+        // if (op == "r" && cleanNum1 < 0)
+        // {
+        //     Console.WriteLine("Error: Cannot calculate square root of a negative number. Please enter a positive number: ");
+        //     numInput1 = Console.ReadLine();
+
+        //     while (!double.TryParse(numInput1, out cleanNum1) || cleanNum1 < 0)
+        //     {
+        //         if (!double.TryParse(numInput1, out cleanNum1))
+        //         {
+        //             Console.WriteLine("This is not valid input. Please enter a numeric value: ");
+        //         }
+        //         else if (cleanNum1 < 0)
+        //         {
+        //             Console.WriteLine("Error: Cannot calculate square root of a negative number. Please enter a positive number: ");
+        //         }
+        //         numInput1 = Console.ReadLine();
+        //     }
+        // }
+
+        Console.Write("Press 'c' to enter a custom date to log, or press any other key and Enter to proceed with current date: ");
+        if (Console.ReadLine() == "c")
+        {
+            Console.Write("Press enter a custom date in YYYY-MM-DD format:");
+            dateLogged = Console.ReadLine();
+
+            // TODO: check this out later - find out what the warning is about
+            while (!Regex.IsMatch(dateLogged, @"^(\d{4})-(\d{2})-(\d{2})$"))
+            {
+                Console.Write("This is not valid input. Please enter a date in YYYY-MM-DD format: ");
+                dateLogged = Console.ReadLine();
+            }
+        }
+
+        else
+        {
+            dateLogged = DateTime.Today.ToString("yyyy-MM-dd");
+        }
+
+        // Console.Write($"You've entered: {dateLogged}");
+
+        string createHabitLogCommand = @"INSERT INTO habit_logs (date, habit_id, quantity, unit_id) VALUES (@DateLogged, @HabitId, @Quantity, @UnitId);";
+
+        using (var command = new SqliteCommand(createHabitLogCommand, connection))
+        {
+            command.Parameters.Add("@DateLogged", SqliteType.Text).Value = dateLogged;
+            command.Parameters.Add("@HabitId", SqliteType.Integer).Value = habitId;
+            command.Parameters.Add("@Quantity", SqliteType.Real).Value = quantity;
+            command.Parameters.Add("@UnitId", SqliteType.Integer).Value = unitId;
+
+            command.ExecuteNonQuery();
+        }
+
+        string selectHabitLogsForDate = @"SELECT * FROM habit_logs WHERE date = @DateLogged;";
+        using (var command = new SqliteCommand(selectHabitLogsForDate, connection))
+        {
+            command.Parameters.Add("@DateLogged", SqliteType.Text).Value = dateLogged;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                Console.WriteLine($"log_id: {reader["log_id"]}");
+                Console.WriteLine($"date: {reader["date"]}");
+                Console.WriteLine($"habit_id: {reader["habit_id"]}");
+                Console.WriteLine($"quantity: {reader["quantity"]}");
+                Console.WriteLine($"unit_id: {reader["unit_id"]}");
             }
         }
 
